@@ -16,7 +16,9 @@ The service includes:
 - Cloud-ready deployment support
 
 ---
-## ARCHITECTURE
+## Architecture
+
+```mermaid
 flowchart TD
 
     Client["Frontend / API Client<br/>(Swagger UI, Postman, Custom UI)"]
@@ -62,7 +64,6 @@ flowchart TD
     style Services fill:#fef9e7,stroke:#d4ac0d,stroke-width:2
     style Auth fill:#fcefee,stroke:#c0392b,stroke-width:2
     style Routers fill:#eef5ff,stroke:#5276c4,stroke-width:2
----
 
 ## 2. Key Features
 
