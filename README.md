@@ -16,6 +16,53 @@ The service includes:
 - Cloud-ready deployment support
 
 ---
+## ARCHITECTURE
+flowchart TD
+
+    Client["Frontend / API Client<br/>(Swagger UI, Postman, Custom UI)"]
+        -->|HTTP Requests| API["FastAPI Application"]
+
+    subgraph Routers["FastAPI Routers (/org, /admin)"]
+        ORG["orgs.py<br/>Create / Get / Update / Delete Org"]
+        ADMIN["admin.py<br/>Admin Login"]
+    end
+
+    API --> ORG
+    API --> ADMIN
+
+    subgraph Services["Service Layer"]
+        ORG_SVC["OrgService<br/>Business Logic<br/>Validation<br/>Collection Management"]
+    end
+
+    ORG --> ORG_SVC
+
+    subgraph Auth["Authentication Layer"]
+        AUTH["JWT Token Handling<br/>Create / Decode Tokens"]
+        SECURITY["Password Hashing<br/>(bcrypt + SHA256)"]
+    end
+
+    ADMIN --> AUTH
+    ORG_SVC --> SECURITY
+
+    subgraph Mongo["MongoDB Atlas Cluster<br/>Master Database"]
+        ORG_COLL["organizations collection"]
+        ADMIN_COLL["admins collection"]
+        DYNAMIC_COLL["org_<name><br/>Dynamic Collections"]
+    end
+
+    ORG_SVC -->|CRUD Operations| ORG_COLL
+    ORG_SVC -->|Read / Write| ADMIN_COLL
+    ORG_SVC -->|Create / Copy / Delete| DYNAMIC_COLL
+
+    AUTH --> Mongo
+    SECURITY --> Mongo
+
+    %% Styling
+    style Mongo fill:#f0f9ff,stroke:#4a90e2,stroke-width:2
+    style Services fill:#fef9e7,stroke:#d4ac0d,stroke-width:2
+    style Auth fill:#fcefee,stroke:#c0392b,stroke-width:2
+    style Routers fill:#eef5ff,stroke:#5276c4,stroke-width:2
+---
 
 ## 2. Key Features
 
@@ -125,23 +172,6 @@ http://localhost:8000/docs
 
 ---
 
-## 8. Deployment (Render)
-
-This service is fully compatible with **Render Web Services**.
-
-**Build Command**
-```
-pip install -r requirements.txt
-```
-
-**Start Command**
-```
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
-```
-
-Ensure all environment variables are configured in the Render dashboard.
-
----
 
 ## 9. Screenshots
 
