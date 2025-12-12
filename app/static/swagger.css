@@ -1,0 +1,14 @@
+/* Increase text only (minimal aesthetic effect) */
+.swagger-ui,
+.swagger-ui * {
+    font-size: 18px !important;
+}
+
+/* Hide the openapi.json link completely */
+.topbar-wrapper a[href*="openapi.json"],
+.topbar-wrapper .link,
+.topbar-wrapper .download-url-wrapper,
+.topbar a[href$="openapi.json"],
+.swagger-ui .topbar a[href$="openapi.json"] {
+    display: none !important;
+}

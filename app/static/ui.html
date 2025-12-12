@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Org Management</title>
+<style>
+  :root{
+    --bg:#f7fafc; --card:#ffffff; --muted:#607089; --accent:#0b7285; --ok:#16a34a; --err:#ef4444;
+    /* increased padding for panels */
+    --pad:20px; --radius:10px; --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+  /* Increase base font size to improve readability site-wide */
+  html { font-size: 20px; }
+  body{background:linear-gradient(180deg,#f8fafc,#eef2ff);color:#071321}
+  /* slightly wider container for better alignment with larger text */
+  .container{max-width:1500px;margin:18px auto;padding:12px}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  header h1{margin:0;font-size:20px}
+  header .spacer{flex:1}
+  .top-actions{display:flex;gap:8px;align-items:center}
+  .btn{background:var(--accent);color:white;border:0;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
+  .btn.ghost{background:transparent;border:1px solid #d1d5db;color:#071321;font-weight:600}
+  /* increase left column width so the form/list boxes appear larger and aligned */
+  .layout{display:grid;grid-template-columns:420px 1fr;gap:18px}
+  .panel{background:var(--card);border-radius:12px;padding:var(--pad);box-shadow:0 6px 18px rgba(2,6,23,0.06)}
+  .left-list{height:78vh;overflow:auto;padding:6px}
+  .opgroup{margin-bottom:8px}
+  .opgroup h3{font-size:13px;margin:6px 6px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em}
+  .opitem{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer;margin:6px 4px}
+  .opitem:hover{background:#f1f5f9}
+  .method-badge{padding:6px 8px;border-radius:6px;color:white;font-weight:800;font-size:13px}
+  .method-GET{background:#16a34a}
+  .method-POST{background:#0ea5a9}
+  .method-PUT{background:#f59e0b}
+  .method-DELETE{background:#ef4444}
+  .path-text{font-family:var(--mono);font-size:13px;color:#0f172a}
+  .selected{background:#eef7f7;border-left:3px solid var(--accent)}
+  .details{height:78vh;overflow:auto}
+  .op-title{display:flex;align-items:center;gap:12px}
+  .op-title h2{margin:0;font-size:18px}
+  .meta{color:var(--muted);font-size:13px}
+  .section{margin-top:12px}
+  label{display:block;font-weight:700;margin-bottom:6px;font-size:13px}
+  .small{font-size:13px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  table td,table th{padding:8px;border-bottom:1px solid #eef2f5;text-align:left}
+  input[type="text"], input[type="number"], textarea, select {
+    width:100%; padding:10px;border-radius:8px;border:1px solid #e6eef0;font-size:14px;
+  }
+  textarea{min-height:120px;font-family:var(--mono)}
+  .resp{margin-top:10px;background:#0b1220;color:#e6f7fb;padding:12px;border-radius:8px;font-family:var(--mono);white-space:pre-wrap;font-size:13px;max-height:320px;overflow:auto}
+  .row{display:flex;gap:8px}
+  .muted{color:var(--muted)}
+  .schemas-panel{margin-top:12px;max-height:240px;overflow:auto}
+  .schema-item{padding:8px;border-radius:8px;border:1px solid #eef2f5;margin-bottom:8px;cursor:pointer}
+  .raw{background:#0f172a;color:#f8fafc;padding:12px;border-radius:8px;font-family:var(--mono);font-size:13px;white-space:pre-wrap}
+  .kbd{font-family:var(--mono);background:#f1f5f9;padding:4px 8px;border-radius:6px;border:1px solid #e6eef0}
+  .flex-between{display:flex;justify-content:space-between;align-items:center}
+  .hide{display:none}
+  @media (max-width:900px){
+    .layout{grid-template-columns:1fr; grid-auto-rows:auto}
+    .left-list{height:40vh}
+    .details{height:40vh}
+  }
+  /* Force all user-facing text to 30px to satisfy accessibility request */
+  body, body * { font-size: 20px !important; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Organization Management</h1>
+        <div class="small muted">Select operations on the left; form + raw schema on the right.</div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="top-actions">
+        <input id="token-input" type="password" placeholder="Paste token or Bearer &lt;token&gt;" style="width:360px;padding:8px;border-radius:8px;border:1px solid #e6eef0"/>
+        <button id="toggle-token-visibility" class="btn ghost" style="padding:6px 8px;margin-left:6px" onclick="toggleTokenVisibility()">Show</button>
+        <button class="btn" onclick="saveToken()">Authorize</button>
+        <button class="btn ghost" onclick="clearToken()">Clear</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <div class="panel left-list" id="ops-list">
+        <div class="flex-between">
+          <div id="api-title" class="small muted">Loading API...</div>
+          <div>
+            <button class="btn ghost" onclick="refreshSpec()">Reload</button>
+          </div>
+        </div>
+        <div id="groups"></div>
+
+        <div class="section">
+          <label>Schemas</label>
+          <div id="schemas" class="schemas-panel"></div>
+        </div>
+      </div>
+
+      <div class="panel details" id="op-details">
+        <div id="placeholder">
+          <div class="small muted">Select an operation on the left to view details and test it.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* Complete fixed UI:
+   - POST-first order
+   - schemaToForm generates real inputs (data-name/data-type)
+   - collectRequestBody reads those inputs to produce JSON
+   - raw-body is initialized with an example
+   - Schemas list, authorize, execute
+*/
+
+const OPENAPI_URL = "/openapi.json";
+let spec = null;
+let current = null;
+
+document.addEventListener("DOMContentLoaded", ()=> {
+  const stored = localStorage.getItem('api_token') || '';
+  // if stored token is expired, clear it
+  if(stored && isTokenExpired(stored)){
+    localStorage.removeItem('api_token');
+    document.getElementById('token-input').value = '';
+  } else {
+    document.getElementById('token-input').value = stored;
+    if(stored) scheduleTokenExpiry(stored);
+  }
+  loadSpec();
+});
+
+async function loadSpec(){
+  try{
+    const res = await fetch(OPENAPI_URL);
+    spec = await res.json();
+    document.getElementById('api-title').textContent = `${spec.info?.title || 'API'} ${spec.info?.version ? '— ' + spec.info.version : ''}`;
+    buildGroups();
+    buildSchemas();
+  }catch(e){
+    document.getElementById('api-title').textContent = 'Failed to load openapi.json';
+    console.error(e);
+  }
+}
+
+function refreshSpec(){ loadSpec(); showMessage('Spec reloaded') }
+
+function groupsByTag(){
+  const paths = spec.paths || {};
+  const tagMap = {}; // tag -> [ {method, path, op} ]
+  for(const path in paths){
+    for(const method in paths[path]){
+      const op = paths[path][method];
+      const tag = (op.tags && op.tags[0]) || 'default';
+      tagMap[tag] = tagMap[tag] || [];
+      tagMap[tag].push({ method: method.toUpperCase(), path, op });
+    }
+  }
+  return tagMap;
+}
+
+function buildGroups(){
+  const gm = groupsByTag();
+  const container = document.getElementById('groups');
+  container.innerHTML = '';
+
+  // prefer POST first, then GET, PUT, DELETE, then the rest
+  const preferredOrder = ["POST","GET","PUT","DELETE","PATCH","OPTIONS","HEAD"];
+  for(const tag in gm){
+    const group = document.createElement('div'); group.className = 'opgroup';
+    const h = document.createElement('h3'); h.textContent = tag; group.appendChild(h);
+
+    const arr = gm[tag].sort((a,b)=>{
+      const ia = preferredOrder.indexOf(a.method) >= 0 ? preferredOrder.indexOf(a.method) : preferredOrder.length;
+      const ib = preferredOrder.indexOf(b.method) >= 0 ? preferredOrder.indexOf(b.method) : preferredOrder.length;
+      if(ia !== ib) return ia - ib;
+      return a.path.localeCompare(b.path);
+    });
+
+    arr.forEach(item => {
+      const el = document.createElement('div'); el.className = 'opitem';
+      el.onclick = ()=> selectOp(item);
+      const badge = document.createElement('div'); badge.className = 'method-badge method-' + item.method;
+      badge.textContent = item.method;
+      const pt = document.createElement('div'); pt.className = 'path-text'; pt.textContent = item.path + (item.op.summary ? ' — ' + item.op.summary : '');
+      el.appendChild(badge); el.appendChild(pt);
+      group.appendChild(el);
+    });
+    container.appendChild(group);
+  }
+}
+
+function buildSchemas(){
+  const comps = spec.components || {};
+  const schemas = comps.schemas || {};
+  const container = document.getElementById('schemas');
+  container.innerHTML = '';
+  if(Object.keys(schemas).length === 0){
+    container.innerHTML = '<div class="small muted">No component schemas</div>';
+    return;
+  }
+  for(const name in schemas){
+    const box = document.createElement('div'); box.className = 'schema-item';
+    box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:700">${name}</div><div class="small muted">schema</div></div>`;
+    box.onclick = ()=> showSchema(name, schemas[name]);
+    container.appendChild(box);
+  }
+}
+
+function showSchema(name, schema){
+  const d = document.getElementById('op-details');
+  d.innerHTML = `<div class="op-title"><h2>Schema: ${name}</h2><div class="meta">Component schema</div></div>
+                 <div class="section"><label>Schema (raw)</label><div class="raw" id="raw-schema"></div></div>`;
+  document.getElementById('raw-schema').textContent = JSON.stringify(schema, null, 2);
+}
+
+function selectOp(item){
+  current = item;
+  // highlight selection
+  document.querySelectorAll('.opitem').forEach(x=>x.classList.remove('selected'));
+  document.querySelectorAll('.opitem .path-text').forEach(pt=>{
+    if(pt.textContent.startsWith(item.path)) pt.parentElement.classList.add('selected');
+  });
+  renderDetails(item);
+}
+
+function renderDetails({ method, path, op }){
+  const d = document.getElementById('op-details');
+  d.innerHTML = '';
+  // title
+  const title = document.createElement('div'); title.className = 'op-title';
+  title.innerHTML = `<div class="method-badge method-${method}">${method}</div>
+                     <div style="flex:1"><h2>${path}</h2><div class="meta">${op.summary || ''}</div></div>`;
+  d.appendChild(title);
+
+  // description
+  if(op.description){
+    const desc = document.createElement('div'); desc.className = 'section small'; desc.innerHTML = op.description;
+    d.appendChild(desc);
+  }
+
+  // parameters table (path/query/header)
+  const params = op.parameters || [];
+  if(params.length){
+    const sec = document.createElement('div'); sec.className = 'section';
+    sec.innerHTML = `<label>Parameters</label>`;
+    const tbl = document.createElement('table');
+    tbl.innerHTML = `<thead><tr><th>Name</th><th>In</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>`;
+    const tbody = document.createElement('tbody');
+    params.forEach(p=>{
+      const t = p.schema ? (p.schema.type || JSON.stringify(p.schema)) : '-';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${p.name}</td><td>${p.in}</td><td>${t}</td><td>${p.required? 'yes':'no'}</td><td>${p.description || ''}</td>`;
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);
+    sec.appendChild(tbl);
+
+    // Render parameter input controls (label + input) so runOperation can pick values up
+    const paramsControls = document.createElement('div');
+    paramsControls.style.marginTop = '10px';
+    params.forEach(p=>{
+      const pWrap = document.createElement('div');
+      pWrap.style.marginBottom = '8px';
+
+      const lbl = document.createElement('label');
+      // label text must start with parameter name so runOperation can find it
+      lbl.textContent = p.name + (p.required ? ' *' : '') + (p.description ? ' — ' + p.description : '');
+      pWrap.appendChild(lbl);
+
+      // choose input type based on schema or parameter style
+      const schema = p.schema || {};
+      let inputEl;
+      if(schema.type === 'array' || schema.type === 'object'){
+        inputEl = document.createElement('textarea');
+        inputEl.className = 'input';
+        const ex = schemaExample(schema.type === 'array' ? (schema.items||{}) : schema);
+        inputEl.value = JSON.stringify(ex, null, 2);
+      } else if(schema.type === 'integer' || schema.type === 'number'){
+        inputEl = document.createElement('input');
+        inputEl.type = 'number';
+        inputEl.className = 'input';
+        if(schema.example !== undefined) inputEl.value = schema.example;
+      } else {
+        inputEl = document.createElement('input');
+        inputEl.type = 'text';
+        inputEl.className = 'input';
+        if(schema.example !== undefined) inputEl.value = schema.example;
+        if(schema.format === 'email') inputEl.placeholder = 'user@example.com';
+      }
+
+      // runOperation finds the input by using the label's nextElementSibling
+      pWrap.appendChild(inputEl);
+      paramsControls.appendChild(pWrap);
+    });
+    sec.appendChild(paramsControls);
+    d.appendChild(sec);
+  }
+
+  // Request Body form generator
+  let requestSchema = null;
+  if(op.requestBody && op.requestBody.content){
+    const content = op.requestBody.content['application/json'] || op.requestBody.content[Object.keys(op.requestBody.content)[0]];
+    if(content && content.schema) requestSchema = content.schema;
+  }
+
+  let example = null;
+  if(requestSchema){
+    const sec = document.createElement('div'); sec.className = 'section';
+    sec.innerHTML = `<label>Request Body — Form</label><div id="form-area"></div>
+                     <div style="margin-top:8px" class="small muted">You can edit the JSON on the right raw editor too.</div>`;
+    d.appendChild(sec);
+
+    const formArea = document.getElementById('form-area');
+    formArea.innerHTML = '';
+    example = schemaToForm(requestSchema, formArea, { requiredOnly:false, fieldPrefix: '' });
+
+    const rawSec = document.createElement('div'); rawSec.className = 'section';
+    rawSec.innerHTML = `<label>Request body (raw JSON)</label><textarea id="raw-body" class="input" placeholder="Request JSON"></textarea>`;
+    d.appendChild(rawSec);
+
+    // initialize raw-body with example (if available)
+    try{
+      const rawTa = document.getElementById('raw-body');
+      if(rawTa) rawTa.value = JSON.stringify(example || {}, null, 2);
+    }catch(e){}
+  } else {
+    const sec = document.createElement('div'); sec.className = 'section';
+    sec.innerHTML = `<label>Request body</label><div class="small muted">No request body schema</div>`;
+    d.appendChild(sec);
+  }
+
+  // Responses summary
+  if(op.responses){
+    const sec = document.createElement('div'); sec.className = 'section';
+    sec.innerHTML = `<label>Responses</label>`;
+    const tb = document.createElement('table');
+    tb.innerHTML = `<thead><tr><th>Status</th><th>Content-Types</th><th>Schema</th></tr></thead>`;
+    const tbody = document.createElement('tbody');
+    for(const st in op.responses){
+      const r = op.responses[st];
+      const ct = r.content ? Object.keys(r.content).join(', ') : '-';
+      const schema = r.content && r.content['application/json'] && r.content['application/json'].schema ? summarize(r.content['application/json'].schema) : '-';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${st}</td><td>${ct}</td><td>${schema}</td>`;
+      tbody.appendChild(tr);
+    }
+    tb.appendChild(tbody);
+    sec.appendChild(tb);
+    d.appendChild(sec);
+  }
+
+  // controls: execute
+  const runSec = document.createElement('div'); runSec.className = 'section';
+  runSec.innerHTML = `<label>Execute</label>`;
+  const row = document.createElement('div'); row.className='row';
+  const sendBtn = document.createElement('button'); sendBtn.className='btn'; sendBtn.textContent='Send';
+  sendBtn.onclick = ()=> runOperation(method, path, op);
+  row.appendChild(sendBtn);
+  row.appendChild(document.createElement('div'));
+  runSec.appendChild(row);
+  d.appendChild(runSec);
+
+  // response area
+  const respSec = document.createElement('div'); respSec.className='section';
+  respSec.innerHTML = `<label>Response</label><div id="response-area" class="resp">No response yet.</div>`;
+  d.appendChild(respSec);
+
+  // raw schema display (request & responses)
+  const rawAll = document.createElement('div'); rawAll.className='section';
+  rawAll.innerHTML = `<label>Raw Schema (request / responses)</label>
+                      <div id="raw-schemas" class="raw">${buildRawSchemasHTML(op)}</div>`;
+  d.appendChild(rawAll);
+}
+
+function summarize(schema){
+  if(!schema) return '-';
+  if(schema.$ref) return schema.$ref.split('/').pop();
+  if(schema.type) return schema.type + (schema.format ? ' (' + schema.format + ')' : '');
+  return JSON.stringify(schema);
+}
+
+function buildRawSchemasHTML(op){
+  const r = { request: null, responses: {} };
+  if(op.requestBody && op.requestBody.content){
+    const c = op.requestBody.content['application/json'] || op.requestBody.content[Object.keys(op.requestBody.content)[0]];
+    r.request = c ? c.schema : null;
+  }
+  for(const st in op.responses || {}){
+    const rr = op.responses[st];
+    const c = rr.content && (rr.content['application/json'] || rr.content[Object.keys(rr.content)[0]]);
+    r.responses[st] = c ? c.schema : null;
+  }
+  return JSON.stringify(r, null, 2);
+}
+
+// ---------- Fixed schemaToForm (creates real inputs) ----------
+function schemaToForm(schema, parentEl, opts = {}, level=0){
+  opts = Object.assign({ requiredOnly:false, fieldPrefix:'' }, opts);
+  if(schema.$ref){
+    const ref = schema.$ref.replace('#/components/schemas/','');
+    const actual = (spec.components && spec.components.schemas && spec.components.schemas[ref]) || {};
+    return schemaToForm(actual, parentEl, opts, level+1);
+  }
+
+  if(schema.type === 'object' || schema.properties){
+    const props = schema.properties || {};
+    const example = {};
+    for(const key in props){
+      const prop = props[key];
+      const required = (schema.required || []).includes(key);
+      const wrapper = document.createElement('div');
+      wrapper.style.marginBottom = '8px';
+
+      const label = document.createElement('label');
+      label.textContent = `${key}${required ? ' *' : ''}` + (prop.description ? ' — ' + prop.description : '');
+      wrapper.appendChild(label);
+
+      // nested object
+      if(prop.type === 'object' || prop.properties || prop.$ref){
+        const sub = document.createElement('div');
+        sub.style.marginLeft = '6px';
+        wrapper.appendChild(sub);
+        const childExample = schemaToForm(prop, sub, opts, level+1);
+        example[key] = childExample;
+      }
+      // array
+      else if(prop.type === 'array'){
+        const itemSchema = prop.items || {};
+        const ta = document.createElement('textarea');
+        ta.className = 'input';
+        const ex = schemaExample(itemSchema);
+        ta.value = JSON.stringify([ex], null, 2);
+        ta.setAttribute('data-name', key);
+        ta.setAttribute('data-type', 'array');
+        wrapper.appendChild(ta);
+        example[key] = [ex];
+      }
+      else {
+        // primitive input
+        const input = document.createElement('input');
+        // if this property represents a password, use masked input
+        const isPasswordField = key && String(key).toLowerCase().includes('password') || (prop.format === 'password');
+        if(isPasswordField) input.type = 'password';
+        else input.type = (prop.type === 'integer' || prop.type === 'number') ? 'number' : 'text';
+        input.className = 'input';
+        input.placeholder = prop.example !== undefined ? prop.example : (prop.enum ? prop.enum.join(',') : '');
+        input.setAttribute('data-name', key);
+        input.setAttribute('data-type', prop.type || 'string');
+        wrapper.appendChild(input);
+        example[key] = prop.example !== undefined ? prop.example : (prop.enum ? prop.enum[0] : (prop.type === 'number' ? 0 : ''));
+      }
+      parentEl.appendChild(wrapper);
+    }
+    return example;
+  } else if(schema.type === 'array'){
+    const items = schema.items || {};
+    const example = schemaExample(items);
+    const ta = document.createElement('textarea'); ta.className = 'input';
+    ta.value = JSON.stringify([example], null, 2);
+    parentEl.appendChild(ta);
+    return [example];
+  } else {
+    // primitive
+    const input = document.createElement('input'); input.className = 'input';
+    input.placeholder = schema.example !== undefined ? schema.example : '';
+    input.setAttribute('data-name', opts.fieldPrefix || 'value');
+    parentEl.appendChild(input);
+    return schema.example !== undefined ? schema.example : '';
+  }
+}
+
+// produce a simple example from schema (for default raw body)
+function schemaExample(schema){
+  if(!schema) return {};
+  if(schema.$ref){
+    const ref = schema.$ref.replace('#/components/schemas/','');
+    const actual = (spec.components && spec.components.schemas && spec.components.schemas[ref]) || {};
+    return schemaExample(actual);
+  }
+  if(schema.example !== undefined) return schema.example;
+  if(schema.type === 'object' || schema.properties){
+    const out = {};
+    const props = schema.properties || {};
+    for(const k in props){
+      out[k] = schemaExample(props[k]);
+    }
+    return out;
+  } else if(schema.type === 'array'){
+    return [ schemaExample(schema.items || {}) ];
+  } else if(schema.type === 'string'){
+    if(schema.format === 'email') return 'user@example.com';
+    if(schema.enum) return schema.enum[0];
+    return 'string';
+  } else if(schema.type === 'integer' || schema.type === 'number') return 0;
+  else if(schema.type === 'boolean') return false;
+  return null;
+}
+
+// ---------- Fixed collectRequestBody (reads data-name) ----------
+function collectRequestBody(op){
+  // Prefer collecting values from the generated form inputs if any are present
+  // This avoids sending the pre-filled raw JSON (which often contains empty strings)
+  const formArea = document.querySelector('#op-details #form-area');
+  if(formArea){
+    // Build object by scanning elements with data-name within formArea
+    const data = {};
+    const inputs = formArea.querySelectorAll('[data-name]');
+    inputs.forEach(el=>{
+      const name = el.getAttribute('data-name');
+      const dtype = el.getAttribute('data-type') || 'string';
+      let val = null;
+      if(el.tagName === 'TEXTAREA'){
+        try{ val = JSON.parse(el.value); }catch(e){ val = el.value; }
+      } else if(el.tagName === 'INPUT'){
+        if(dtype === 'number') val = el.value === '' ? null : Number(el.value);
+        else val = el.value;
+      } else {
+        val = el.value;
+      }
+      data[name] = val;
+    });
+
+    // Additionally, handle nested objects: detect labels that prefix nested groups
+    const labelNodes = formArea.querySelectorAll('label');
+    labelNodes.forEach(lbl=>{
+      const labelText = (lbl.textContent || '').split(' *')[0].split(' — ')[0].trim();
+      const next = lbl.nextElementSibling;
+      if(next && next.querySelectorAll){
+        const nestedInputs = next.querySelectorAll('[data-name]');
+        if(nestedInputs.length > 0){
+          const nested = {};
+          nestedInputs.forEach(ni=>{
+            const nk = ni.getAttribute('data-name');
+            const ndt = ni.getAttribute('data-type') || 'string';
+            let v = null;
+            if(ni.tagName === 'TEXTAREA'){
+              try{ v = JSON.parse(ni.value); }catch(e){ v = ni.value; }
+            } else if(ni.tagName === 'INPUT'){
+              v = ndt === 'number' ? (ni.value === '' ? null : Number(ni.value)) : ni.value;
+            } else v = ni.value;
+            nested[nk] = v;
+          });
+          if(Object.keys(nested).length) data[labelText] = nested;
+        }
+      }
+    });
+
+    // If the form has at least one non-empty / non-null value, prefer it
+    const hasMeaningfulValue = Object.keys(data).length > 0 && Object.values(data).some(v => {
+      if(v === null) return false;
+      if(typeof v === 'string') return v.trim() !== '';
+      if(Array.isArray(v)) return v.length > 0;
+      if(typeof v === 'object') return Object.keys(v).length > 0;
+      return true;
+    });
+    if(hasMeaningfulValue) return data;
+  }
+
+  // Fallback: If no meaningful form data, use raw JSON textarea (if present)
+  const rawTa = document.getElementById('raw-body');
+  if(rawTa && rawTa.value.trim()){
+    try{
+      return JSON.parse(rawTa.value);
+    }catch(e){
+      alert('Invalid JSON in raw request body: ' + e.message); throw e;
+    }
+  }
+
+  return null;
+}
+
+// run operation
+async function runOperation(method, path, op){
+  const base = window.location.origin;
+  let url = base + path;
+  // collect path/query/header params
+  const params = op.parameters || [];
+  const qs = new URLSearchParams();
+  const headers = Object.assign({'Content-Type':'application/json'}, authHeader());
+  params.forEach(p=>{
+    const lbls = Array.from(document.querySelectorAll('#op-details label')).filter(l => (l.textContent||'').startsWith(p.name));
+    if(lbls.length){
+      const input = lbls[0].nextElementSibling;
+      if(input){
+        let val = null;
+        if(input.tagName === 'INPUT') val = parseInputValue(input);
+        else if(input.tagName === 'TEXTAREA') {
+          try{ val = JSON.parse(input.value) }catch(e){ val = input.value; }
+        } else val = input.textContent;
+        if(p.in === 'path'){ url = url.replace('{' + p.name + '}', encodeURIComponent(val)); }
+        else if(p.in === 'query'){ if(val!==null) qs.append(p.name, val); }
+        else if(p.in === 'header'){ if(val!==null) headers[p.name] = val; }
+      }
+    }
+  });
+
+  if(qs.toString()) url += '?' + qs.toString();
+
+  let body = null;
+  // Allow bodies for all non-GET methods (including DELETE)
+  if(method !== 'GET'){
+    try{ body = collectRequestBody(op); }catch(e){ return; }
+  }
+
+  const respArea = document.getElementById('response-area');
+  respArea.textContent = 'Sending...';
+  try{
+    const opts = { method, headers };
+    if(body !== null) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    const ctype = res.headers.get('content-type') || '';
+    let data = null;
+    if(ctype.includes('application/json')) data = await res.json().catch(()=>null);
+    else data = await res.text().catch(()=>null);
+    const out = { status: res.status, headers: Object.fromEntries([...res.headers]), body: data };
+    respArea.textContent = JSON.stringify(out, null, 2);
+    // Detect tokens (common keys) in responses and prompt to save
+    try{ detectAndPromptSaveToken(out); }catch(e){ /* non-fatal */ }
+  }catch(e){
+    respArea.textContent = 'Network error: ' + e.message;
+  }
+}
+
+function parseInputValue(inp){
+  if(!inp) return null;
+  const t = inp.type;
+  const v = inp.value;
+  if(t === 'number') return v===''? null : Number(v);
+  if(v.trim().startsWith('{') || v.trim().startsWith('[')){
+    try{ return JSON.parse(v); }catch(e){}
+  }
+  return v;
+}
+
+// Toggle token visibility in the top input
+function toggleTokenVisibility(){
+  const el = document.getElementById('token-input');
+  const btn = document.getElementById('toggle-token-visibility');
+  if(!el) return;
+  if(el.type === 'password'){
+    el.type = 'text';
+    if(btn) btn.textContent = 'Hide';
+  } else {
+    el.type = 'password';
+    if(btn) btn.textContent = 'Show';
+  }
+}
+
+// Try to extract a plausible token string from headers/body
+function extractTokenFromOut(out){
+  if(!out) return null;
+  // headers: object with header keys
+  const headers = out.headers || {};
+  // common header names
+  const headerCandidates = ['authorization','www-authenticate','x-access-token','x-auth-token'];
+  for(const h of headerCandidates){
+    if(headers[h]){
+      // header may be like 'Bearer <token>' or just token
+      return headers[h];
+    }
+  }
+  // body search
+  const b = out.body;
+  if(b && typeof b === 'object'){
+    // common token fields
+    const candidates = ['access_token','token','auth_token','bearer','accessToken','id_token','jwt'];
+    for(const c of candidates){
+      if(b[c]) return b[c];
+    }
+    // some APIs return { token_type: 'bearer', access_token: '...' }
+    if(b.access_token && b.token_type) return b.access_token;
+    // sometimes nested inside data
+    if(b.data && typeof b.data === 'object'){
+      for(const c of candidates){ if(b.data[c]) return b.data[c]; }
+      if(b.data.access_token) return b.data.access_token;
+    }
+  }
+  return null;
+}
+
+// Prompt user to save the token if found and not already saved
+function detectAndPromptSaveToken(out){
+  const maybe = extractTokenFromOut(out);
+  if(!maybe) return;
+  let tok = String(maybe).trim();
+  if(!tok) return;
+  // If token was returned as 'Bearer <token>', strip prefix before saving. We'll store raw JWT.
+  if(/^Bearer\s+/i.test(tok)) tok = tok.replace(/^Bearer\s+/i, '').trim();
+  const existing = localStorage.getItem('api_token') || '';
+  if(existing && existing.trim() === tok.trim()) return; // already saved
+  const save = confirm('Detected an authentication token in the response. Do you want to save it locally as the API token?');
+  if(save){
+    localStorage.setItem('api_token', tok);
+    const el = document.getElementById('token-input');
+    if(el) el.value = tok;
+    scheduleTokenExpiry(tok);
+    alert('Token saved to localStorage');
+  }
+}
+
+// authorization helpers
+function authHeader(){
+  // We store raw JWT in localStorage (no 'Bearer ' prefix). The input may contain either raw or prefixed token.
+  let t = localStorage.getItem('api_token') || document.getElementById('token-input').value || '';
+  t = (t || '').toString().trim();
+  if(!t) return {};
+  // strip any leading 'Bearer ' if present, then return header with correct prefix
+  if(/^Bearer\s+/i.test(t)) t = t.replace(/^Bearer\s+/i, '').trim();
+  return { 'Authorization': 'Bearer ' + t };
+}
+function saveToken(){
+  let t = document.getElementById('token-input').value.trim();
+  if(!t) { alert('Paste token first'); return; }
+  // if user pasted 'Bearer <token>', strip prefix before saving
+  if(/^Bearer\s+/i.test(t)) t = t.replace(/^Bearer\s+/i, '').trim();
+  localStorage.setItem('api_token', t);
+  scheduleTokenExpiry(t);
+  alert('Token saved (localStorage)');
+}
+function clearToken(){ localStorage.removeItem('api_token'); document.getElementById('token-input').value=''; alert('Token cleared') }
+
+function showMessage(m){ console.info(m) }
+
+// ----------------- Token expiry helpers -----------------
+function isTokenExpired(rawToken){
+  try{
+    // rawToken may be 'Bearer <token>' or raw JWT
+    let t = String(rawToken || '').trim();
+    if(/^Bearer\s+/i.test(t)) t = t.replace(/^Bearer\s+/i, '').trim();
+    const parts = t.split('.');
+    if(parts.length !== 3) return false; // not a JWT
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if(!payload.exp) return false;
+    const now = Math.floor(Date.now() / 1000);
+    return payload.exp <= now;
+  }catch(e){ return false; }
+}
+
+function scheduleTokenExpiry(rawToken){
+  try{
+    let t = String(rawToken || '').trim();
+    if(/^Bearer\s+/i.test(t)) t = t.replace(/^Bearer\s+/i, '').trim();
+    const parts = t.split('.');
+    if(parts.length !== 3) return;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if(!payload.exp) return;
+    const nowMs = Date.now();
+    const expMs = payload.exp * 1000;
+    const delay = expMs - nowMs;
+    if(delay <= 0){
+      // already expired
+      localStorage.removeItem('api_token');
+      const el = document.getElementById('token-input'); if(el) el.value = '';
+      return;
+    }
+    // schedule a timeout to clear token at expiry (use setTimeout; note long timeouts may be clamped by browsers)
+    setTimeout(()=>{
+      localStorage.removeItem('api_token');
+      const el = document.getElementById('token-input'); if(el) el.value = '';
+      alert('API token has expired and was cleared from localStorage');
+    }, delay);
+  }catch(e){ /* ignore */ }
+}
+</script>
+</body>
+</html>
