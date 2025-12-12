@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-pydantic
+pydantic<2
 motor
 passlib[bcrypt]
 PyJWT
@@ -9,3 +9,4 @@ pytest
 pytest-asyncio
 httpx
 email-validator
+pydantic-settings
