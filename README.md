@@ -66,6 +66,7 @@ flowchart TD
     style Routers fill:#eef5ff,stroke:#5276c4,stroke-width:2
 
 
+
 ## 2. Key Features
 
 - Dynamic creation of organizations with unique MongoDB collections
