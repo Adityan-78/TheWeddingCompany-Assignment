@@ -181,15 +181,23 @@ http://localhost:8000/docs
 
 The following screenshots are included in the repository under the `screenshots/` directory and are rendered directly below for reference.
 
-### API Documentation (Swagger UI)
+### UI - POST ORG / API DETAILS
 
 ![Swagger UI](screenshots/ss1.png)
 
-### Organization Management APIs
+### UI - GET ORG / API DETAILS
 
 ![Organization APIs](screenshots/ss2.png)
 
-### Deployment Status / Application Logs
+### UI - PUT ORG / API DETAILS
+
+![Deployment Status](screenshots/ss3.png)
+
+### UI - DELETE ORG / API DETAILS
+
+![Deployment Status](screenshots/ss3.png)
+
+### UI - ADMIN POST / API DETAILS
 
 ![Deployment Status](screenshots/ss3.png)
 
