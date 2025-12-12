@@ -65,6 +65,7 @@ flowchart TD
     style Auth fill:#fcefee,stroke:#c0392b,stroke-width:2
     style Routers fill:#eef5ff,stroke:#5276c4,stroke-width:2
 
+
 ## 2. Key Features
 
 - Dynamic creation of organizations with unique MongoDB collections
