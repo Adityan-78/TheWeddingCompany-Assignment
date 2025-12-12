@@ -5,19 +5,15 @@ https://organization-management-service-rjwy.onrender.com/static/ui.html
 
 How to Use the APIs
 
-1. Create an organization and admin
-   -Use the POST endpoint to add a new organization along with its admin details.
+1. Create an organization and admin: Use the POST endpoint to add a new organization along with its admin details.
 
-2. Fetch organization details
-   -The GET endpoint is public. If you know the organization name, you can retrieve its details without authentication.
+2. Fetch organization details: The GET endpoint is public. If you know the organization name, you can retrieve its details without authentication.
 
-3. Admin login and token generation
-   -Go to the Admin section and log in using the admin email and password of the respective organization.
-   -On successful login, a Bearer token is generated and saved automatically.
+3. Admin login and token generation: Go to the Admin section and log in using the admin email and password of the respective organization. On successful login, a Bearer token is generated and saved automatically.
 
-4. Authorized operations (Update and Delete)
-   -The generated Bearer token is required to perform protected operations such as PUT (update) and DELETE.
-   -As long as the token is valid, the admin can update or delete their organization.
+4. Authorized operations (Update and Delete): The generated Bearer token is required to perform protected operations such as PUT (update) and DELETE.
+
+5. As long as the token is valid, the admin can update or delete their organization.
 
 
 # Organization Management Service
